@@ -36,6 +36,9 @@ class TextBox(object):
                 raise KeyError("InputBox accepts no keyword {}.".format(kwarg))
         self.__dict__.update(defaults)
 
+    def getContents(self):
+        return "".join(self.buffer)
+    
     def get_event(self,event):
         if event.type == pg.KEYDOWN and self.active:
             if event.key in (pg.K_RETURN,pg.K_KP_ENTER):
