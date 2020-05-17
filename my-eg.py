@@ -11,6 +11,7 @@ test_box = TextBox((100, 150, 200, 30), clear_on_enter=False, inactive_on_enter=
 
 exit = False
 
+counter = 0
 while not exit:
     for event in pygame.event.get():
         test_box.get_event(event)
