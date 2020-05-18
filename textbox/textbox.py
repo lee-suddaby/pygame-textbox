@@ -113,15 +113,15 @@ class TextBox(object):
             self.ren_1 = self.font.size("".join(self.buffer[0:self.blink_pos]))[0]
             if self.render_rect.width > self.rect.width-6:
                 self.offset = self.render_rect.width-(self.rect.width-6)
-                self.ren_1 -= self.offset
-                #if self.ren_1 < 10:
-                #    self.offset += self.ren_1 + 10
+                
+                if self.render_rect.width-self.ren_1 > self.rect.width:
+                    self.offset -= self.render_rect.width-self.ren_1-self.rect.width + 10
                 self.render_area = pg.Rect(self.offset,0,self.rect.width-6,
                                            self.render_rect.height)
             else:
                 self.offset = 0
                 self.render_area = self.rendered.get_rect(topleft=(0,0))
-            print(self.ren_1)
+            self.ren_1 -= self.offset
         if pg.time.get_ticks()-self.blink_timer > 500:
             self.blink = not self.blink
             self.blink_timer = pg.time.get_ticks()
@@ -140,5 +140,4 @@ class TextBox(object):
                 surface.fill(self.font_color, (self.rect.width+self.rect.left-6, curse.y, 2, curse.h))
             else:
                 surface.fill(self.font_color, (curse.left+self.ren_1+1, curse.y, 2, curse.h))
-            #surface.fill(self.font_color,(curse.right+1,curse.y,2,curse.h))
 
