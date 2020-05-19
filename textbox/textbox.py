@@ -1,7 +1,7 @@
 import string
 import pygame as pg
 
-ACCEPTED = string.printable
+ACCEPTED = string.ascii_letters+string.digits+string.punctuation+" "
 BANNED = [pg.K_LEFT, pg.K_RIGHT, pg.K_UP, pg.K_DOWN]
 
 class TextBox(object):
@@ -70,17 +70,21 @@ class TextBox(object):
                 self.arr_key = 0
             if event.key == pg.K_BACKSPACE:
                 if self.buffer:
-                    self.buffer.pop()
+                    self.buffer.pop(self.blink_pos-1)
+                    self.blink_pos -= 1
                     if not self.back_press:
                         self.back_timer = pg.time.get_ticks()
                         self.back_press = True
             elif event.unicode in ACCEPTED and not event.key in BANNED:
-                self.buffer.insert(self.blink_pos, event.unicode)
-                self.blink_pos += 1
-                if self.key_cur != event.key:
-                    self.key_timer = pg.time.get_ticks()
-                    self.key_cur = event.key
-                    self.key_unicode = event.unicode
+                buf_temp = self.buffer.copy()
+                buf_temp.insert(self.blink_pos, event.unicode)
+                if len("".join(buf_temp)) > len("".join(self.buffer)):
+                    self.buffer.insert(self.blink_pos, event.unicode)
+                    self.blink_pos += 1
+                    if self.key_cur != event.key:
+                        self.key_timer = pg.time.get_ticks()
+                        self.key_cur = event.key
+                        self.key_unicode = event.unicode
         elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
             self.active = self.rect.collidepoint(event.pos)
 
@@ -96,7 +100,8 @@ class TextBox(object):
         if self.active and pg.key.get_pressed()[pg.K_BACKSPACE] and pg.time.get_ticks()-self.back_timer > 500 and self.back_press:
             self.back_timer -= 200
             if self.buffer:
-                self.buffer.pop()
+                self.buffer.pop(self.blink_pos-1)
+                self.blink_pos -= 1
         if not pg.key.get_pressed()[pg.K_BACKSPACE]:
             self.back_press = False
         
@@ -156,4 +161,3 @@ class TextBox(object):
                 surface.fill(self.font_color, (self.rect.width+self.rect.left-6, curse.y, 2, curse.h))
             else:
                 surface.fill(self.font_color, (curse.left+self.blink_w+1, curse.y, 2, curse.h))
-
