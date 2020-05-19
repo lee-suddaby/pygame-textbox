@@ -2,7 +2,6 @@ import string
 import pygame as pg
 
 ACCEPTED = string.ascii_letters+string.digits+string.punctuation+" "
-BANNED = [pg.K_LEFT, pg.K_RIGHT, pg.K_UP, pg.K_DOWN]
 
 class TextBox(object):
     def __init__(self,rect,**kwargs):
@@ -24,6 +23,8 @@ class TextBox(object):
         self.arr_timer = 0.0
         self.back_press = False
         self.back_timer = 0.0
+        self.del_press = False
+        self.del_timer = 0.0
         self.process_kwargs(kwargs)
 
     def process_kwargs(self,kwargs):
@@ -52,11 +53,18 @@ class TextBox(object):
         if event.type == pg.KEYDOWN and self.active:
             if event.key != pg.K_BACKSPACE:
                 self.back_press = False
-            if event.key != self.key_cur:
+            elif event.key != pg.K_DELETE:
+                self.del_press = False
+            elif event.key != self.key_cur:
                 self.key_cur = 0
+            
             if event.key in (pg.K_RETURN,pg.K_KP_ENTER):
                 self.execute()
-            if event.key == pg.K_LEFT and self.blink_pos > 0:
+            elif event.key == pg.K_HOME:
+                self.blink_pos = 0
+            elif event.key == pg.K_END:
+                self.blink_pos = len("".join(self.buffer))
+            elif event.key == pg.K_LEFT and self.blink_pos > 0:
                 self.blink_pos -= 1
                 self.blink = True
                 self.arr_key = pg.K_LEFT
@@ -68,14 +76,21 @@ class TextBox(object):
                 self.arr_timer = pg.time.get_ticks()
             else:
                 self.arr_key = 0
+            
             if event.key == pg.K_BACKSPACE:
-                if self.buffer:
+                if self.buffer and self.blink_pos != 0:
                     self.buffer.pop(self.blink_pos-1)
                     self.blink_pos -= 1
                     if not self.back_press:
                         self.back_timer = pg.time.get_ticks()
                         self.back_press = True
-            elif event.unicode in ACCEPTED and not event.key in BANNED:
+            elif event.key == pg.K_DELETE:
+                if self.blink_pos != len("".join(self.buffer)):
+                    self.buffer.pop(self.blink_pos)
+                    if not self.del_press:
+                        self.del_timer = pg.time.get_ticks()
+                        self.del_press = True
+            elif event.unicode in ACCEPTED:
                 buf_temp = self.buffer.copy()
                 buf_temp.insert(self.blink_pos, event.unicode)
                 if len("".join(buf_temp)) > len("".join(self.buffer)):
@@ -99,16 +114,28 @@ class TextBox(object):
         #Handle the input of holding down backspace to repeatedly remove letters
         if self.active and pg.key.get_pressed()[pg.K_BACKSPACE] and pg.time.get_ticks()-self.back_timer > 500 and self.back_press:
             self.back_timer -= 200
-            if self.buffer:
+            if self.buffer and self.blink_pos != 0:
                 self.buffer.pop(self.blink_pos-1)
                 self.blink_pos -= 1
         if not pg.key.get_pressed()[pg.K_BACKSPACE]:
             self.back_press = False
+
+        #Handle the input of holding down delete to repeatedly remove letters
+        if self.active and pg.key.get_pressed()[pg.K_DELETE] and pg.time.get_ticks()-self.del_timer > 500 and self.del_press:
+            self.del_timer -= 200
+            if self.blink_pos != len("".join(self.buffer)):
+                self.buffer.pop(self.blink_pos)
+        if not pg.key.get_pressed()[pg.K_DELETE]:
+            self.del_press = False
         
         #Handle holding down of non-backspace keys
         if self.active and pg.key.get_pressed()[self.key_cur] and pg.time.get_ticks()-self.key_timer > 500:
             self.key_timer -= 200
-            self.buffer.append(self.key_unicode)
+            buf_temp = self.buffer.copy()
+            buf_temp.insert(self.blink_pos, self.key_unicode)
+            if len("".join(buf_temp)) > len("".join(self.buffer)):
+                self.buffer.insert(self.blink_pos, self.key_unicode)
+                self.blink_pos += 1
         if not pg.key.get_pressed()[self.key_cur]:
             self.key_cur = 0
             self.key_unicode = None
