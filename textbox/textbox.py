@@ -12,18 +12,18 @@ class TextBox(object):
         self.rendered = None
         self.render_rect = None
         self.render_area = None
-        self.offset = 0
         self.blink = True
         self.blink_timer = 0.0
         self.blink_pos = 0
+        self.blink_w = 0.0
         self.old_blink = 0
         self.key_cur = 0
-        self.key_uni = None
+        self.key_unicode = None
         self.key_timer = 0.0
+        self.arr_key = 0
+        self.arr_timer = 0.0
         self.back_press = False
         self.back_timer = 0.0
-
-        self.ren_1 = 0.0
         self.process_kwargs(kwargs)
 
     def process_kwargs(self,kwargs):
@@ -59,22 +59,28 @@ class TextBox(object):
             if event.key == pg.K_LEFT and self.blink_pos > 0:
                 self.blink_pos -= 1
                 self.blink = True
-            if event.key == pg.K_RIGHT and self.blink_pos < len("".join(self.buffer)):
+                self.arr_key = pg.K_LEFT
+                self.arr_timer = pg.time.get_ticks()
+            elif event.key == pg.K_RIGHT and self.blink_pos < len("".join(self.buffer)):
                 self.blink_pos += 1
                 self.blink = True
-            elif event.key == pg.K_BACKSPACE:
+                self.arr_key = pg.K_RIGHT
+                self.arr_timer = pg.time.get_ticks()
+            else:
+                self.arr_key = 0
+            if event.key == pg.K_BACKSPACE:
                 if self.buffer:
                     self.buffer.pop()
                     if not self.back_press:
                         self.back_timer = pg.time.get_ticks()
                         self.back_press = True
             elif event.unicode in ACCEPTED and not event.key in BANNED:
-                self.buffer.append(event.unicode)
+                self.buffer.insert(self.blink_pos, event.unicode)
                 self.blink_pos += 1
                 if self.key_cur != event.key:
                     self.key_timer = pg.time.get_ticks()
                     self.key_cur = event.key
-                    self.key_uni = event.unicode
+                    self.key_unicode = event.unicode
         elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
             self.active = self.rect.collidepoint(event.pos)
 
@@ -97,10 +103,20 @@ class TextBox(object):
         #Handle holding down of non-backspace keys
         if self.active and pg.key.get_pressed()[self.key_cur] and pg.time.get_ticks()-self.key_timer > 500:
             self.key_timer -= 200
-            self.buffer.append(self.key_uni)
+            self.buffer.append(self.key_unicode)
         if not pg.key.get_pressed()[self.key_cur]:
             self.key_cur = 0
-            self.key_uni = None
+            self.key_unicode = None
+        
+        #Handle repeated arrow pressed for moving cursor
+        if self.active and pg.key.get_pressed()[self.arr_key] and pg.time.get_ticks()-self.arr_timer > 500 and self.arr_key != 0:
+            if self.arr_key == pg.K_LEFT and self.blink_pos > 0:
+                self.blink_pos -= 1
+            elif self.arr_key == pg.K_RIGHT and self.blink_pos < len("".join(self.buffer)):
+                self.blink_pos += 1
+            self.blink = True
+        if not pg.key.get_pressed()[self.arr_key]:
+            self.arr_key = 0
 
         new = "".join(self.buffer)
         if new != self.final or self.old_blink != self.blink_pos:
@@ -110,18 +126,18 @@ class TextBox(object):
             self.render_rect = self.rendered.get_rect(x=self.rect.x+2,
                                                       centery=self.rect.centery)
 
-            self.ren_1 = self.font.size("".join(self.buffer[0:self.blink_pos]))[0]
+            self.blink_w = self.font.size("".join(self.buffer[0:self.blink_pos]))[0]
             if self.render_rect.width > self.rect.width-6:
-                self.offset = self.render_rect.width-(self.rect.width-6)
+                offset = self.render_rect.width-(self.rect.width-6)
                 
-                if self.render_rect.width-self.ren_1 > self.rect.width:
-                    self.offset -= self.render_rect.width-self.ren_1-self.rect.width + 10
-                self.render_area = pg.Rect(self.offset,0,self.rect.width-6,
+                if self.render_rect.width-self.blink_w > self.rect.width:
+                    offset -= self.render_rect.width-self.blink_w-self.rect.width + 10
+                self.render_area = pg.Rect(offset,0,self.rect.width-6,
                                            self.render_rect.height)
             else:
-                self.offset = 0
+                offset = 0
                 self.render_area = self.rendered.get_rect(topleft=(0,0))
-            self.ren_1 -= self.offset
+            self.blink_w -= offset
         if pg.time.get_ticks()-self.blink_timer > 500:
             self.blink = not self.blink
             self.blink_timer = pg.time.get_ticks()
@@ -136,8 +152,8 @@ class TextBox(object):
         if self.blink and self.active:
             curse = self.render_area.copy()
             curse.topleft = self.render_rect.topleft
-            if curse.left+self.ren_1 > self.rect.width+self.rect.left-6:
+            if curse.left+self.blink_w > self.rect.width+self.rect.left-6:
                 surface.fill(self.font_color, (self.rect.width+self.rect.left-6, curse.y, 2, curse.h))
             else:
-                surface.fill(self.font_color, (curse.left+self.ren_1+1, curse.y, 2, curse.h))
+                surface.fill(self.font_color, (curse.left+self.blink_w+1, curse.y, 2, curse.h))
 
